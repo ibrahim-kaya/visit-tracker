@@ -31,7 +31,10 @@ class VisitTracker
         }
 
         $ip = $this->getIp();
-        $ip_info = $this->getIpInfo($ip);
+		
+		$detailedIp = config('visit-tracker.detailed_ip_info', false);
+
+		$ip_info = $detailedIp ? $this->getIpInfo($ip) : null;
 
         // Create visit data
         PageVisitLog::create([

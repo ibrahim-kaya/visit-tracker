@@ -35,4 +35,14 @@ return [
     |
     */
     'log_bots' => false,
+	
+	/*
+    |--------------------------------------------------------------------------
+    | Detailed IP Info
+    |--------------------------------------------------------------------------
+    |
+    | If this option is set to true, it will retrieve detailed information from http://ip-api.com.
+    |
+    */
+    'detailed_ip_info' => true,
 ];
