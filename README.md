@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Laravel Visit Tracker
 
 
@@ -109,8 +108,3 @@ protected $middleware = [
 ## 📜 License
 
 MIT License © [İbrahim Kaya](https://github.com/ibrahim-kaya)
-
-=======
-# visit-tracker
-A Laravel package to automatically track page visits including IP, browser, device, referrer, and more. Perfect for analytics and monitoring.
->>>>>>> origin/main
