@@ -1,5 +1,6 @@
-# Laravel Visit Tracker
+## Laravel Visit Tracker by _[İbrahim Kaya](https://ibrahimkaya.dev)_
 
+[![Latest Stable Version](http://poser.pugx.org/ibrahim-kaya/visit-tracker/v)](https://packagist.org/packages/ibrahim-kaya/visit-tracker) [![Total Downloads](http://poser.pugx.org/ibrahim-kaya/visit-tracker/downloads)](https://packagist.org/packages/ibrahim-kaya/visit-tracker) [![Latest Unstable Version](http://poser.pugx.org/ibrahim-kaya/visit-tracker/v/unstable)](https://packagist.org/packages/ibrahim-kaya/visit-tracker) [![License](http://poser.pugx.org/ibrahim-kaya/visit-tracker/license)](https://packagist.org/packages/ibrahim-kaya/visit-tracker) [![PHP Version Require](http://poser.pugx.org/ibrahim-kaya/visit-tracker/require/php)](https://packagist.org/packages/ibrahim-kaya/visit-tracker)
 
 A **Laravel package** to automatically track page visits including IP, browser, device, referrer, and more. Perfect for analytics and monitoring.
 
