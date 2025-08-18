@@ -45,4 +45,16 @@ return [
     |
     */
     'detailed_ip_info' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Use Queue System
+    |--------------------------------------------------------------------------
+    |
+    | If this option is set to true, visit logging will be processed via Laravel queues.
+    | If false, it will be processed synchronously (blocking).
+    | Recommended: true for production, false for development/testing.
+    |
+    */
+    'use_queue' => true,
 ];

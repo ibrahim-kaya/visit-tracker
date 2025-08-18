@@ -3,11 +3,10 @@
 namespace IbrahimKaya\VisitTracker\Middleware;
 
 use Closure;
-use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Cache;
 use IbrahimKaya\VisitTracker\Models\PageVisitLog;
+use IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog;
 use hisorange\BrowserDetect\Parser as Browser;
 
 class VisitTracker
@@ -31,13 +30,11 @@ class VisitTracker
         }
 
         $ip = $this->getIp();
-		
+
 		$detailedIp = config('visit-tracker.detailed_ip_info', false);
 
-		$ip_info = $detailedIp ? $this->getIpInfo($ip) : null;
-
         // Create visit data
-        PageVisitLog::create([
+        $visitData = [
             'user_id'    => auth()->check() ? auth()->id() : null,
             'session_id' => session()->getId(),
             'ip_address' => $ip,
@@ -45,11 +42,20 @@ class VisitTracker
             'device_type'=> Browser::deviceType(),
             'browser'    => Browser::browserName(),
             'platform'   => Browser::platformName(),
-            'ip_info'    => $ip_info,
+            'ip_info'    => null, // Will be filled by the job
             'page_url'   => $request->fullUrl(),
             'user_agent' => $request->userAgent(),
             'is_bot'     => Browser::isBot(),
-        ]);
+        ];
+
+        // Check if queue system should be used
+        if (config('visit-tracker.use_queue', true)) {
+            // Dispatch job to queue for processing
+            \IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog::dispatch($visitData, $ip, $detailedIp);
+        } else {
+            // Process synchronously (for development/testing)
+            $this->processVisitLogSynchronously($visitData, $ip, $detailedIp);
+        }
 
         return $next($request);
     }
@@ -84,17 +90,34 @@ class VisitTracker
     }
 
     /**
-     * Fetch IP information (cache supported)
+     * Process visit log synchronously (when queue is disabled)
      */
-    protected function getIpInfo(?string $ip): ?array
+    protected function processVisitLogSynchronously(array $visitData, ?string $ip, bool $detailedIp): void
+    {
+        // Get IP info if needed
+        $ip_info = null;
+        if ($detailedIp && $ip) {
+            $ip_info = $this->getIpInfoSynchronously($ip);
+        }
+
+        // Create visit log directly
+        \IbrahimKaya\VisitTracker\Models\PageVisitLog::create(array_merge($visitData, [
+            'ip_info' => $ip_info,
+        ]));
+    }
+
+    /**
+     * Fetch IP information synchronously (cache supported)
+     */
+    protected function getIpInfoSynchronously(?string $ip): ?array
     {
         if (!$ip) return null;
 
         $cacheDuration = config('visit-tracker.ip_info_cache_duration', 24 * 60 * 60);
 
-        return Cache::remember("visit_tracker_ip_{$ip}", $cacheDuration, function() use ($ip) {
+        return \Illuminate\Support\Facades\Cache::remember("visit_tracker_ip_{$ip}", $cacheDuration, function() use ($ip) {
             try {
-                $client = new Client(['timeout' => 2]);
+                $client = new \GuzzleHttp\Client(['timeout' => 2]);
                 $res = $client->get("http://ip-api.com/json/{$ip}?fields=status,message,continent,continentCode,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,offset,currency,isp,org,as,asname,reverse,proxy,hosting,query");
                 $json = json_decode($res->getBody()->getContents(), true);
                 return $json && $json['status'] === 'success' ? $json : null;

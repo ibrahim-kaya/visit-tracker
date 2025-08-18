@@ -9,6 +9,7 @@ A **Laravel package** to automatically track page visits including IP, browser, 
 ## 🌟 Features
 
 - Automatic tracking of all web requests.
+- **Queue-based processing** for better performance.
 - Logs detailed visitor information:
   - IP address (with optional geolocation from http://ip-api.com)
   - Browser name
@@ -22,6 +23,7 @@ A **Laravel package** to automatically track page visits including IP, browser, 
 - Optional logging of bots.
 - Configurable IP info cache duration.
 - Middleware auto-registered for all web routes.
+- **Asynchronous IP geolocation** processing via Laravel queues.
 
 ---
 
@@ -53,6 +55,40 @@ php artisan migrate
 
 - Creates `page_visit_logs` table.
 
+### 4️⃣ Configure queue system (optional)
+
+**If you want to use queues** (recommended for production), make sure your Laravel application has a queue driver configured in `.env`:
+
+```bash
+QUEUE_CONNECTION=database
+# or
+QUEUE_CONNECTION=redis
+# or
+QUEUE_CONNECTION=sync
+```
+
+If using database queues, run:
+```bash
+php artisan queue:table
+php artisan migrate
+```
+
+**If you don't want to use queues**, set `use_queue => false` in `config/visit-tracker.php`. This will process visits synchronously (useful for development/testing).
+
+
+
+**Start queue worker (only if using queues):**
+
+```bash
+php artisan queue:work
+```
+
+**Or for production (supervisor recommended):**
+
+```bash
+php artisan queue:work --daemon
+```
+
 ---
 
 ## ⚙️ Configuration
@@ -69,18 +105,22 @@ return [
     'log_bots' => false,
 
     'ip_info_cache_duration' => 86400, // seconds
+    
+    'use_queue' => true, // Use Laravel queues for processing
 ];
 ```
 
 - **excluded\_paths** → Wildcards supported.
 - **log\_bots** → Set `true` to log bot visits.
 - **ip\_info\_cache\_duration** → Cache IP info to reduce API calls.
+- **use\_queue** → Set `true` to use Laravel queues, `false` for synchronous processing.
 
 ---
 
 ## 💻 Usage
 
 No extra code is required. Visit any web page and the visit is logged automatically.
+
 
 **Retrieve logs example:**
 
@@ -96,6 +136,7 @@ foreach ($recentVisits as $visit) {
 }
 ```
 
+
 **Optional manual middleware:**
 
 ```php
@@ -104,8 +145,9 @@ protected $middleware = [
 ];
 ```
 
+
 ---
 
 ## 📜 License
 
-MIT License © [İbrahim Kaya](https://github.com/ibrahim-kaya)
+MIT License © [İbrahim Kaya](https://ibrahimkaya.dev)

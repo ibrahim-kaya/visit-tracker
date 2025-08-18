@@ -1,20 +1,21 @@
 {
     "name": "ibrahim-kaya/visit-tracker",
     "description": "A Laravel package to track page visits including IP, browser, device, and referrer information.",
-	"version": "1.0.1",
+	"version": "1.0.2",
     "type": "library",
     "license": "MIT",
     "authors": [
         {
             "name": "İbrahim Kaya",
             "email": "me@ibrahimkaya.dev",
-            "homepage": "https://github.com/ibrahim-kaya",
+            "homepage": "https://ibrahimkaya.dev",
             "role": "Laravel Developer"
         }
     ],
     "require": {
         "php": ">=8.0",
         "illuminate/support": "^9.0|^10.0|^11.0|^12.0",
+        "illuminate/queue": "^9.0|^10.0|^11.0|^12.0",
         "guzzlehttp/guzzle": "^7.9",
         "hisorange/browser-detect": "^5.0"
     },
