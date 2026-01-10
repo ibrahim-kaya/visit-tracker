@@ -21,8 +21,7 @@ class VisitTrackerServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/visit-tracker.php', 'visit-tracker');
 
         // Middleware for all web routes
-        $kernel = $this->app->make(HttpKernel::class);
-        $kernel->pushMiddleware(VisitTracker::class);
+        $kernel = $this->app->make('router')->pushMiddlewareToGroup('web', \IbrahimKaya\VisitTracker\Middleware\VisitTracker::class);
     }
 
     public function register()

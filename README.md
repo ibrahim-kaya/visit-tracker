@@ -145,6 +145,183 @@ protected $middleware = [
 ];
 ```
 
+---
+
+## 📊 Statistics
+
+The `PageVisitLog` model provides various static methods to retrieve statistics about your visits.
+
+> **Note:** The examples below are just some quick use functions. For detailed usage, you can query the model directly using Laravel's Eloquent methods to retrieve and manipulate the data as needed. All visit data is stored in the `page_visit_logs` table and can be accessed through the `PageVisitLog` model.
+
+### Basic Statistics
+
+**Total Visits:**
+```php
+use IbrahimKaya\VisitTracker\Models\PageVisitLog;
+
+// Get total visits (including bots)
+$total = PageVisitLog::totalVisits();
+
+// Get total visits excluding bots
+$total = PageVisitLog::totalVisits(true);
+```
+
+**Unique Visitors:**
+```php
+// Counts unique visitors using user_id (if logged in) or session_id
+// This ensures logged-in users are counted correctly even if their session_id changes
+$unique = PageVisitLog::uniqueVisitors();
+$unique = PageVisitLog::uniqueVisitors(true); // Exclude bots
+```
+
+**Unique IP Addresses:**
+```php
+$uniqueIps = PageVisitLog::uniqueIpAddresses();
+$uniqueIps = PageVisitLog::uniqueIpAddresses(true); // Exclude bots
+```
+
+### Page Statistics
+
+**Most Visited Pages:**
+```php
+// Get top 10 most visited pages
+$topPages = PageVisitLog::mostVisitedPages(10);
+
+// Get top 5 most visited pages excluding bots
+$topPages = PageVisitLog::mostVisitedPages(5, true);
+
+// Access results
+foreach ($topPages as $page) {
+    echo $page->page_url . ': ' . $page->visit_count . ' visits';
+}
+```
+
+**Visits by Date Range:**
+```php
+// Get visits for a specific date range
+$visits = PageVisitLog::visitsByDateRange('2024-01-01', '2024-01-31');
+
+// Get visits from a specific date to today
+$visits = PageVisitLog::visitsByDateRange('2024-01-01');
+
+// Get visits up to a specific date
+$visits = PageVisitLog::visitsByDateRange(null, '2024-01-31');
+
+// Exclude bots
+$visits = PageVisitLog::visitsByDateRange('2024-01-01', '2024-01-31', true);
+```
+
+### Device & Browser Statistics
+
+**Statistics by Device Type:**
+```php
+$deviceStats = PageVisitLog::statisticsByDeviceType();
+$deviceStats = PageVisitLog::statisticsByDeviceType(true); // Exclude bots
+
+// Access results
+foreach ($deviceStats as $stat) {
+    echo $stat->device_type . ': ' . $stat->count . ' visits';
+}
+```
+
+**Statistics by Browser:**
+```php
+$browserStats = PageVisitLog::statisticsByBrowser();
+$browserStats = PageVisitLog::statisticsByBrowser(true); // Exclude bots
+
+foreach ($browserStats as $stat) {
+    echo $stat->browser . ': ' . $stat->count . ' visits';
+}
+```
+
+**Statistics by Platform:**
+```php
+$platformStats = PageVisitLog::statisticsByPlatform();
+$platformStats = PageVisitLog::statisticsByPlatform(true); // Exclude bots
+
+foreach ($platformStats as $stat) {
+    echo $stat->platform . ': ' . $stat->count . ' visits';
+}
+```
+
+### Referrer Statistics
+
+**Top Referrers:**
+```php
+// Get top 10 referrers
+$referrers = PageVisitLog::statisticsByReferrer(10);
+$referrers = PageVisitLog::statisticsByReferrer(10, true); // Exclude bots
+
+foreach ($referrers as $referrer) {
+    echo $referrer->referrer . ': ' . $referrer->count . ' visits';
+}
+```
+
+### Time-based Statistics
+
+**Daily Statistics:**
+```php
+// Get daily statistics for the last 30 days
+$daily = PageVisitLog::dailyStatistics(30);
+$daily = PageVisitLog::dailyStatistics(30, true); // Exclude bots
+
+foreach ($daily as $day) {
+    echo $day->date . ': ' . $day->count . ' visits';
+}
+```
+
+### Geographic Statistics
+
+**Statistics by Country:**
+```php
+// Requires detailed IP info to be enabled in config
+$countryStats = PageVisitLog::statisticsByCountry();
+$countryStats = PageVisitLog::statisticsByCountry(true); // Exclude bots
+
+foreach ($countryStats as $stat) {
+    echo $stat['country'] . ': ' . $stat['count'] . ' visits';
+}
+```
+
+### Summary Statistics
+
+**Get All Statistics at Once:**
+```php
+// Get summary statistics for the last 30 days
+$summary = PageVisitLog::summaryStatistics(30);
+$summary = PageVisitLog::summaryStatistics(30, true); // Exclude bots
+
+// Returns an array with:
+// - total_visits
+// - unique_visitors
+// - unique_ips
+// - top_pages (top 5)
+// - by_device
+// - by_browser
+// - by_platform
+
+echo $summary['total_visits'];
+echo $summary['unique_visitors'];
+```
+
+### Query Scopes
+
+**Exclude Bots Scope:**
+```php
+// Use the scope to filter out bots
+$visits = PageVisitLog::excludeBots()->get();
+```
+
+**Date Range Scope:**
+```php
+// Filter visits by date range
+$visits = PageVisitLog::dateRange('2024-01-01', '2024-01-31')->get();
+
+// Combine scopes
+$visits = PageVisitLog::excludeBots()
+    ->dateRange('2024-01-01', '2024-01-31')
+    ->get();
+```
 
 ---
 

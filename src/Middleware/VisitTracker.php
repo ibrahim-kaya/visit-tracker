@@ -35,7 +35,7 @@ class VisitTracker
 
         // Create visit data
         $visitData = [
-            'user_id'    => auth()->check() ? auth()->id() : null,
+            'user_id'    => optional($request->user())->id,
             'session_id' => session()->getId(),
             'ip_address' => $ip,
             'referrer'   => $request->headers->get('referer'),
