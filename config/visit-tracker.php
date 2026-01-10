@@ -17,6 +17,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Excluded HTTP Methods
+    |--------------------------------------------------------------------------
+    |
+    | The HTTP methods you specify here will not be logged.
+    | Example: ['POST', 'PATCH', 'PUT'] - these requests will not be logged
+    | Leave empty array [] to log all methods.
+    |
+    */
+    'excluded_methods' => [
+	
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | IP Info Cache Duration
     |--------------------------------------------------------------------------
     |

@@ -24,6 +24,12 @@ class VisitTracker
                 }
             }
 
+            // Excluded methods check
+            $excludedMethods = config('visit-tracker.excluded_methods', []);
+            if (!empty($excludedMethods) && in_array($request->method(), $excludedMethods)) {
+                return $next($request);
+            }
+
             // Bot check
             $logBots = config('visit-tracker.log_bots', false);
 

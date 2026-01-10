@@ -22,6 +22,7 @@ A **Laravel package** to automatically track page visits including IP, browser, 
   - Request payload/body (optional, configurable with sensitive data exclusion)
   - Authenticated user ID (if logged in)
 - Exclude specific routes or paths.
+- Exclude specific HTTP methods (e.g., POST, PATCH).
 - Optional logging of bots.
 - Configurable IP info cache duration.
 - Middleware auto-registered for all web routes.
@@ -104,6 +105,11 @@ return [
         'telescope/*',
     ],
 
+    'excluded_methods' => [
+        'POST',
+        'PATCH',
+    ],
+
     'log_bots' => false,
 
     'ip_info_cache_duration' => 86400, // seconds
@@ -121,7 +127,8 @@ return [
 ];
 ```
 
-- **excluded\_paths** → Wildcards supported.
+- **excluded\_paths** → Wildcards supported. Paths that will not be logged.
+- **excluded\_methods** → HTTP methods that will not be logged. Example: `['POST', 'PATCH']` - these requests will not be logged. Leave empty array `[]` to log all methods.
 - **log\_bots** → Set `true` to log bot visits.
 - **ip\_info\_cache\_duration** → Cache IP info to reduce API calls.
 - **use\_queue** → Set `true` to use Laravel queues, `false` for synchronous processing.
