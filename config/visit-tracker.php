@@ -57,4 +57,33 @@ return [
     |
     */
     'use_queue' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Log Payload
+    |--------------------------------------------------------------------------
+    |
+    | If this option is set to true, request payload/body data will be logged.
+    | Set to false to disable payload logging for privacy/security reasons.
+    |
+    */
+    'log_payload' => false,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Excluded Payload Fields
+    |--------------------------------------------------------------------------
+    |
+    | Fields that should be excluded from the payload when logging requests.
+    | This is useful for excluding sensitive data like passwords, tokens, etc.
+    | Example: ['password', 'password_confirmation', 'token', '_token']
+    | Note: This only applies if 'log_payload' is set to true.
+    |
+    */
+    'excluded_payload_fields' => [
+        'password',
+        'password_confirmation',
+        'token',
+        '_token',
+    ],
 ];

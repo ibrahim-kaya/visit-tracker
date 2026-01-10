@@ -18,6 +18,8 @@ A **Laravel package** to automatically track page visits including IP, browser, 
   - Referrer URL
   - Full URL
   - User agent
+  - HTTP method (GET, POST, PUT, DELETE, etc.)
+  - Request payload/body (optional, configurable with sensitive data exclusion)
   - Authenticated user ID (if logged in)
 - Exclude specific routes or paths.
 - Optional logging of bots.
@@ -107,6 +109,15 @@ return [
     'ip_info_cache_duration' => 86400, // seconds
     
     'use_queue' => true, // Use Laravel queues for processing
+
+    'log_payload' => false, // Set to true to log request payload/body data
+
+    'excluded_payload_fields' => [
+        'password',
+        'password_confirmation',
+        'token',
+        '_token',
+    ],
 ];
 ```
 
@@ -114,6 +125,8 @@ return [
 - **log\_bots** → Set `true` to log bot visits.
 - **ip\_info\_cache\_duration** → Cache IP info to reduce API calls.
 - **use\_queue** → Set `true` to use Laravel queues, `false` for synchronous processing.
+- **log\_payload** → Set `true` to log request payload/body data. Set to `false` to disable payload logging for privacy/security reasons.
+- **excluded\_payload\_fields** → Fields to exclude from request payload logging (useful for sensitive data like passwords, tokens, etc.). Only applies if `log_payload` is `true`.
 
 ---
 
@@ -133,6 +146,8 @@ foreach ($recentVisits as $visit) {
     echo $visit->ip_address;
     echo $visit->browser;
     echo $visit->device_type;
+    echo $visit->method; // HTTP method (GET, POST, etc.)
+    echo $visit->payload; // Request payload (array, null for GET requests)
 }
 ```
 

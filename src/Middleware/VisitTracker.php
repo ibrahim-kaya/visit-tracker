@@ -5,6 +5,7 @@ namespace IbrahimKaya\VisitTracker\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 use IbrahimKaya\VisitTracker\Models\PageVisitLog;
 use IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog;
 use hisorange\BrowserDetect\Parser as Browser;
@@ -13,48 +14,68 @@ class VisitTracker
 {
     public function handle(Request $request, Closure $next)
     {
-        $path = $request->path();
+        try {
+            $path = $request->path();
 
-        // Excluded paths check
-        foreach (config('visit-tracker.excluded_paths', []) as $excluded) {
-            if (Str::is($excluded, $path)) {
+            // Excluded paths check
+            foreach (config('visit-tracker.excluded_paths', []) as $excluded) {
+                if (Str::is($excluded, $path)) {
+                    return $next($request);
+                }
+            }
+
+            // Bot check
+            $logBots = config('visit-tracker.log_bots', false);
+
+            if (Browser::isBot() && !$logBots) {
                 return $next($request);
             }
-        }
 
-        // Bot check
-		$logBots = config('visit-tracker.log_bots', false);
+            $ip = $this->getIp();
 
-        if (Browser::isBot() && !$logBots) {
-            return $next($request);
-        }
+            $detailedIp = config('visit-tracker.detailed_ip_info', false);
 
-        $ip = $this->getIp();
+            // Get payload (exclude sensitive data) - only if enabled in config
+            $payload = null;
+            if (config('visit-tracker.log_payload', false) && in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
+                $payload = $request->except(config('visit-tracker.excluded_payload_fields', ['password', 'password_confirmation', 'token', '_token']));
+                // Convert to array and filter out empty values if needed
+                if (empty($payload)) {
+                    $payload = null;
+                }
+            }
 
-		$detailedIp = config('visit-tracker.detailed_ip_info', false);
+            // Create visit data
+            $visitData = [
+                'user_id'    => optional($request->user())->id,
+                'session_id' => session()->getId(),
+                'ip_address' => $ip,
+                'referrer'   => $request->headers->get('referer'),
+                'device_type'=> Browser::deviceType(),
+                'browser'    => Browser::browserName(),
+                'platform'   => Browser::platformName(),
+                'ip_info'    => null, // Will be filled by the job
+                'page_url'   => $request->fullUrl(),
+                'user_agent' => $request->userAgent(),
+                'method'     => $request->method(),
+                'payload'    => $payload,
+                'is_bot'     => Browser::isBot(),
+            ];
 
-        // Create visit data
-        $visitData = [
-            'user_id'    => optional($request->user())->id,
-            'session_id' => session()->getId(),
-            'ip_address' => $ip,
-            'referrer'   => $request->headers->get('referer'),
-            'device_type'=> Browser::deviceType(),
-            'browser'    => Browser::browserName(),
-            'platform'   => Browser::platformName(),
-            'ip_info'    => null, // Will be filled by the job
-            'page_url'   => $request->fullUrl(),
-            'user_agent' => $request->userAgent(),
-            'is_bot'     => Browser::isBot(),
-        ];
-
-        // Check if queue system should be used
-        if (config('visit-tracker.use_queue', true)) {
-            // Dispatch job to queue for processing
-            \IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog::dispatch($visitData, $ip, $detailedIp);
-        } else {
-            // Process synchronously (for development/testing)
-            $this->processVisitLogSynchronously($visitData, $ip, $detailedIp);
+            // Check if queue system should be used
+            if (config('visit-tracker.use_queue', true)) {
+                // Dispatch job to queue for processing
+                \IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog::dispatch($visitData, $ip, $detailedIp);
+            } else {
+                // Process synchronously (for development/testing)
+                $this->processVisitLogSynchronously($visitData, $ip, $detailedIp);
+            }
+        } catch (\Throwable $e) {
+            // Log the error but don't break the application
+            Log::error('VisitTracker middleware error: ' . $e->getMessage(), [
+                'exception' => $e,
+                'path' => $request->path(),
+            ]);
         }
 
         return $next($request);

@@ -23,6 +23,8 @@ return new class extends Migration
             $table->text('ip_info')->nullable()->comment('Additional information about the IP address, such as location data, stored as JSON');
             $table->text('page_url')->nullable()->comment('The URL of the visited page');
             $table->text('user_agent')->nullable()->comment('The user agent of the visitor');
+            $table->string('method')->nullable()->comment('The HTTP method used for the request (e.g., GET, POST, PUT, DELETE)');
+            $table->text('payload')->nullable()->comment('The request payload/body data, stored as JSON');
             $table->boolean('is_bot')->default(false)->comment('Indicates whether the visitor is a bot or not');
             $table->timestamps();
         });

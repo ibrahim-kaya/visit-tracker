@@ -21,11 +21,14 @@ class PageVisitLog extends Model
         'ip_info',
         'page_url',
         'user_agent',
+        'method',
+        'payload',
         'is_bot'
     ];
 
     protected $casts = [
         'ip_info' => 'array',
+        'payload' => 'array',
         'is_bot' => 'boolean',
     ];
 
