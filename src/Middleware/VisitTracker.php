@@ -39,6 +39,8 @@ class VisitTracker
             $payload = null;
             if (config('visit-tracker.log_payload', false) && in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
                 $payload = $request->except(config('visit-tracker.excluded_payload_fields', ['password', 'password_confirmation', 'token', '_token']));
+                // Filter out non-serializable objects (like UploadedFile)
+                $payload = $this->filterSerializableData($payload);
                 // Convert to array and filter out empty values if needed
                 if (empty($payload)) {
                     $payload = null;
@@ -146,5 +148,51 @@ class VisitTracker
                 return null;
             }
         });
+    }
+
+    /**
+     * Filter out non-serializable data from payload (like UploadedFile objects)
+     *
+     * @param mixed $data
+     * @return mixed
+     */
+    protected function filterSerializableData($data)
+    {
+        if (is_array($data)) {
+            $filtered = [];
+            foreach ($data as $key => $value) {
+                $filtered[$key] = $this->filterSerializableData($value);
+            }
+            return $filtered;
+        }
+
+        // Check if the value is an object that cannot be serialized
+        if (is_object($data)) {
+            // Check if it's an UploadedFile or similar file upload object
+            if ($data instanceof \Illuminate\Http\UploadedFile) {
+                // Return file info instead of the object
+                return [
+                    'original_name' => $data->getClientOriginalName(),
+                    'mime_type' => $data->getMimeType(),
+                    'size' => $data->getSize(),
+                    '_type' => 'uploaded_file'
+                ];
+            }
+
+            // Try to serialize, if it fails, return a placeholder
+            try {
+                serialize($data);
+                return $data;
+            } catch (\Throwable $e) {
+                // Return object class name as placeholder
+                return [
+                    '_type' => 'object',
+                    '_class' => get_class($data),
+                    '_message' => 'Non-serializable object filtered'
+                ];
+            }
+        }
+
+        return $data;
     }
 }
