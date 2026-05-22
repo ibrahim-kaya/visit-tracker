@@ -115,6 +115,8 @@ return [
     'ip_info_cache_duration' => 86400, // seconds
     
     'use_queue' => true, // Use Laravel queues for processing
+	'queue_connection'  => env('VISIT_TRACKER_QUEUE_CONNECTION', 'redis'),
+    'queue_name'        => env('VISIT_TRACKER_QUEUE', 'default'),
 
     'log_payload' => false, // Set to true to log request payload/body data
 

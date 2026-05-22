@@ -73,7 +73,9 @@ class VisitTracker
             // Check if queue system should be used
             if (config('visit-tracker.use_queue', true)) {
                 // Dispatch job to queue for processing
-                \IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog::dispatch($visitData, $ip, $detailedIp);
+                \IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog::dispatch($visitData, $ip, $detailedIp)
+				->onConnection(config('visit-tracker.queue_connection', 'redis'))
+				->onQueue(config('visit-tracker.queue_name', 'default'));
             } else {
                 // Process synchronously (for development/testing)
                 $this->processVisitLogSynchronously($visitData, $ip, $detailedIp);
