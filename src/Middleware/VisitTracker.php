@@ -72,8 +72,16 @@ class VisitTracker
 
             // Check if queue system should be used
             if (config('visit-tracker.use_queue', true)) {
-                // Dispatch job to queue for processing
-                \IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog::dispatch($visitData, $ip, $detailedIp);
+                $pending = ProcessVisitLog::dispatch($visitData, $ip, $detailedIp);
+
+                // Optional overrides (useful when Horizon uses redis but QUEUE_CONNECTION is database)
+                if ($connection = config('visit-tracker.queue_connection')) {
+                    $pending->onConnection($connection);
+                }
+
+                if ($queue = config('visit-tracker.queue_name')) {
+                    $pending->onQueue($queue);
+                }
             } else {
                 // Process synchronously (for development/testing)
                 $this->processVisitLogSynchronously($visitData, $ip, $detailedIp);

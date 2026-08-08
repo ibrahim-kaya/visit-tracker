@@ -2,30 +2,43 @@
 
 namespace IbrahimKaya\VisitTracker;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Support\ServiceProvider;
 use IbrahimKaya\VisitTracker\Middleware\VisitTracker;
 
 class VisitTrackerServiceProvider extends ServiceProvider
 {
+    public function register()
+    {
+        $this->mergeConfigFrom(__DIR__ . '/../config/visit-tracker.php', 'visit-tracker');
+    }
+
     public function boot()
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
 
-        // Config publish
         $this->publishes([
             __DIR__ . '/../config/visit-tracker.php' => config_path('visit-tracker.php'),
         ], 'visit-tracker-config');
 
-        // Config merge
-        $this->mergeConfigFrom(__DIR__ . '/../config/visit-tracker.php', 'visit-tracker');
+        // Laravel 11+ rebuilds the web group after provider boot(); register late
+        // so VisitTracker is not wiped by the framework middleware configuration.
+        $this->app->booted(function () {
+            $this->registerWebMiddleware();
+        });
 
-        // Middleware for all web routes
-        $kernel = $this->app->make('router')->pushMiddlewareToGroup('web', \IbrahimKaya\VisitTracker\Middleware\VisitTracker::class);
+        $this->app->afterResolving(HttpKernel::class, function () {
+            $this->registerWebMiddleware();
+        });
     }
 
-    public function register()
+    protected function registerWebMiddleware(): void
     {
-        //
+        $router = $this->app['router'];
+        $group = $router->getMiddlewareGroups()['web'] ?? [];
+
+        if (! in_array(VisitTracker::class, $group, true)) {
+            $router->pushMiddlewareToGroup('web', VisitTracker::class);
+        }
     }
 }

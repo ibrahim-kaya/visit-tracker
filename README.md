@@ -116,6 +116,11 @@ return [
     
     'use_queue' => true, // Use Laravel queues for processing
 
+    // Optional: only needed if Horizon/worker listens on a different connection
+    // than QUEUE_CONNECTION (e.g. Horizon=redis, QUEUE_CONNECTION=database)
+    'queue_connection' => env('VISIT_TRACKER_QUEUE_CONNECTION'),
+    'queue_name' => env('VISIT_TRACKER_QUEUE'),
+
     'log_payload' => false, // Set to true to log request payload/body data
 
     'excluded_payload_fields' => [

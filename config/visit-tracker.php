@@ -74,6 +74,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Queue Connection / Queue Name
+    |--------------------------------------------------------------------------
+    |
+    | Optional. Leave null/empty to use the application's default queue connection.
+    | Set these when your worker/Horizon listens on a different connection than
+    | QUEUE_CONNECTION (e.g. Horizon on redis while QUEUE_CONNECTION=database).
+    |
+    */
+    'queue_connection' => env('VISIT_TRACKER_QUEUE_CONNECTION'),
+    'queue_name' => env('VISIT_TRACKER_QUEUE'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Log Payload
     |--------------------------------------------------------------------------
     |
