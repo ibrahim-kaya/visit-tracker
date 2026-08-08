@@ -113,4 +113,36 @@ return [
         'token',
         '_token',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Attribute Visits On Auth
+    |--------------------------------------------------------------------------
+    |
+    | When true, anonymous visits from the same browser (visitor cookie and/or
+    | current session) are assigned to the user after login or registration.
+    |
+    */
+    'attribute_on_auth' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Visitor Cookie
+    |--------------------------------------------------------------------------
+    |
+    | Persistent cookie used to recognize an anonymous visitor across session
+    | regenerations (login/logout). Required for reliable attribution.
+    |
+    */
+    'visitor_cookie' => 'visit_tracker_vid',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Visitor Cookie Lifetime (minutes)
+    |--------------------------------------------------------------------------
+    |
+    | How long the visitor cookie should last. Default: 2 years.
+    |
+    */
+    'visitor_cookie_minutes' => 60 * 24 * 365 * 2,
 ];

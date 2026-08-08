@@ -13,6 +13,7 @@ class PageVisitLog extends Model
      protected $fillable = [
         'user_id',
         'session_id',
+        'visitor_id',
         'ip_address',
         'referrer',
         'device_type',
@@ -31,6 +32,32 @@ class PageVisitLog extends Model
         'payload' => 'array',
         'is_bot' => 'boolean',
     ];
+
+    /**
+     * Assign anonymous visits to a user (by visitor cookie and/or session id).
+     *
+     * @param  int|string  $userId
+     * @return int Number of updated rows
+     */
+    public static function attributeToUser($userId, ?string $visitorId = null, ?string $sessionId = null): int
+    {
+        if ($visitorId === null && $sessionId === null) {
+            return 0;
+        }
+
+        return static::query()
+            ->whereNull('user_id')
+            ->where(function ($query) use ($visitorId, $sessionId) {
+                if ($visitorId) {
+                    $query->orWhere('visitor_id', $visitorId);
+                }
+
+                if ($sessionId) {
+                    $query->orWhere('session_id', $sessionId);
+                }
+            })
+            ->update(['user_id' => $userId]);
+    }
 
     /**
      * Returns the total number of visits

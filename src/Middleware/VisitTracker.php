@@ -4,9 +4,9 @@ namespace IbrahimKaya\VisitTracker\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
-use IbrahimKaya\VisitTracker\Models\PageVisitLog;
+use Illuminate\Support\Str;
 use IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog;
 use hisorange\BrowserDetect\Parser as Browser;
 
@@ -53,10 +53,13 @@ class VisitTracker
                 }
             }
 
+            $visitorId = $this->resolveVisitorId($request);
+
             // Create visit data
             $visitData = [
                 'user_id'    => optional($request->user())->id,
                 'session_id' => session()->getId(),
+                'visitor_id' => $visitorId,
                 'ip_address' => $ip,
                 'referrer'   => $request->headers->get('referer'),
                 'device_type'=> Browser::deviceType(),
@@ -95,6 +98,39 @@ class VisitTracker
         }
 
         return $next($request);
+    }
+
+    /**
+     * Resolve (or create) the persistent anonymous visitor id.
+     */
+    protected function resolveVisitorId(Request $request): ?string
+    {
+        if (! config('visit-tracker.attribute_on_auth', true)) {
+            return null;
+        }
+
+        $cookieName = config('visit-tracker.visitor_cookie', 'visit_tracker_vid');
+        $visitorId = $request->cookie($cookieName);
+
+        if (! is_string($visitorId) || $visitorId === '') {
+            $visitorId = (string) Str::uuid();
+        }
+
+        $minutes = (int) config('visit-tracker.visitor_cookie_minutes', 60 * 24 * 365 * 2);
+
+        Cookie::queue(cookie(
+            $cookieName,
+            $visitorId,
+            $minutes,
+            '/',
+            null,
+            config('session.secure', null),
+            true,
+            false,
+            'lax'
+        ));
+
+        return $visitorId;
     }
 
     /**

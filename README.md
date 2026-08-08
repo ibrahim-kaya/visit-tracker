@@ -21,6 +21,7 @@ A **Laravel package** to automatically track page visits including IP, browser, 
   - HTTP method (GET, POST, PUT, DELETE, etc.)
   - Request payload/body (optional, configurable with sensitive data exclusion)
   - Authenticated user ID (if logged in)
+- **Attribute anonymous visits after login/register** (visitor cookie + session)
 - Exclude specific routes or paths.
 - Exclude specific HTTP methods (e.g., POST, PATCH).
 - Optional logging of bots.
@@ -129,6 +130,11 @@ return [
         'token',
         '_token',
     ],
+
+    // Assign anonymous visits to the user after login/register
+    'attribute_on_auth' => true,
+    'visitor_cookie' => 'visit_tracker_vid',
+    'visitor_cookie_minutes' => 60 * 24 * 365 * 2, // 2 years
 ];
 ```
 
@@ -139,6 +145,29 @@ return [
 - **use\_queue** → Set `true` to use Laravel queues, `false` for synchronous processing.
 - **log\_payload** → Set `true` to log request payload/body data. Set to `false` to disable payload logging for privacy/security reasons.
 - **excluded\_payload\_fields** → Fields to exclude from request payload logging (useful for sensitive data like passwords, tokens, etc.). Only applies if `log_payload` is `true`.
+- **attribute\_on\_auth** → When `true`, anonymous visits from the same browser are assigned to the user after login or registration.
+- **visitor\_cookie** → Cookie name used to recognize anonymous visitors across session regenerations.
+- **visitor\_cookie\_minutes** → Lifetime of the visitor cookie in minutes.
+
+### Attribute anonymous visits after login/register
+
+When `attribute_on_auth` is enabled (default), the package:
+
+1. Stores a persistent `visitor_id` cookie while the guest browses
+2. Saves that `visitor_id` (and `session_id`) on each visit log
+3. On `Login` / `Registered`, updates matching rows where `user_id` is null
+
+You can also do it manually:
+
+```php
+use IbrahimKaya\VisitTracker\Models\PageVisitLog;
+
+PageVisitLog::attributeToUser(
+    auth()->id(),
+    request()->cookie(config('visit-tracker.visitor_cookie')),
+    session()->getId()
+);
+```
 
 ---
 
