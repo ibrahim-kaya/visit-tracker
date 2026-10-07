@@ -6,124 +6,120 @@ A **Laravel package** to automatically track page visits including IP, browser, 
 
 ---
 
-## 🌟 Features
+## Features
 
 - Automatic tracking of all web requests.
-- **Queue-based processing** for better performance.
+- **Terminable middleware** — UA parsing and DB writes run after the response is sent (does not delay TTFB).
+- Optional **queue-based** processing when you prefer a worker.
 - Logs detailed visitor information:
   - IP address (with optional geolocation from http://ip-api.com)
-  - Browser name
-  - Platform/OS
-  - Device type
-  - Referrer URL
-  - Full URL
-  - User agent
-  - HTTP method (GET, POST, PUT, DELETE, etc.)
-  - Request payload/body (optional, configurable with sensitive data exclusion)
+  - Browser name, platform/OS, device type
+  - Referrer URL, full URL, normalized path
+  - User agent, HTTP method, optional payload
   - Authenticated user ID (if logged in)
+  - Country code (when detailed IP info is enabled)
 - **Attribute anonymous visits after login/register** (visitor cookie + session)
-- Exclude specific routes or paths.
-- Exclude specific HTTP methods (e.g., POST, PATCH).
-- Optional logging of bots.
-- Configurable IP info cache duration.
-- Middleware auto-registered for all web routes.
-- **Asynchronous IP geolocation** processing via Laravel queues.
+- Exclude paths/methods; skip AJAX and prefetch by default
+- Optional sampling and per-visitor/page dedupe
+- Optional bot logging (cheap bot pre-check when disabled)
+- Configurable IP info cache (positive + negative) and statistics cache
+- Optional retention pruning via `model:prune`
+- Middleware auto-registered for all web routes
 
 ---
 
-## 🚀 Installation
+## Installation
 
-### 1️⃣ Require the package via Composer
+### 1. Require the package via Composer
 
 ```bash
 composer require ibrahim-kaya/visit-tracker
 ```
 
----
-
-### 2️⃣ Publish the configuration
+### 2. Publish the configuration
 
 ```bash
 php artisan vendor:publish --provider="IbrahimKaya\VisitTracker\VisitTrackerServiceProvider" --tag=visit-tracker-config
 ```
 
-- Creates `config/visit-tracker.php`.
-
----
-
-### 3️⃣ Run migrations
+### 3. Run migrations
 
 ```bash
 php artisan migrate
 ```
 
-- Creates `page_visit_logs` table.
+Creates / updates the `page_visit_logs` table (including performance indexes, `path`, and `country_code`).
 
-### 4️⃣ Configure queue system (optional)
+> **Note:** On very large existing tables, adding indexes may take time. Prefer a maintenance window.
 
-**If you want to use queues** (recommended for production), make sure your Laravel application has a queue driver configured in `.env`:
+### 4. Queue (optional)
+
+By default `use_queue` is `false`. Tracking still runs **after** the HTTP response is sent (`terminate`), so a single INSERT is usually enough and no worker is required.
+
+If you prefer queues:
 
 ```bash
-QUEUE_CONNECTION=database
-# or
 QUEUE_CONNECTION=redis
-# or
-QUEUE_CONNECTION=sync
+# or database / sync
 ```
 
-If using database queues, run:
-```bash
-php artisan queue:table
-php artisan migrate
-```
-
-**If you don't want to use queues**, set `use_queue => false` in `config/visit-tracker.php`. This will process visits synchronously (useful for development/testing).
-
-
-
-**Start queue worker (only if using queues):**
+Prefer **redis** over the `database` queue driver (database queues add INSERT jobs + DELETE jobs per visit).
 
 ```bash
 php artisan queue:work
 ```
 
-**Or for production (supervisor recommended):**
+---
 
-```bash
-php artisan queue:work --daemon
-```
+## Performance recommendations
+
+| Topic | Recommendation |
+|-------|----------------|
+| Response time | Tracking runs in `terminate()` after the response is sent — keep it that way. |
+| Queues | Default `use_queue => false` is fine for most sites. If you enable queues, use **redis**. |
+| Browser detect cache | Publish `hisorange/browser-detect` config and raise `browser-detect.cache.interval` to **7–30 days** (UA → result is deterministic). Prefer **redis** or **apcu** as the app cache store instead of `file`. |
+| IP geolocation | Keep `detailed_ip_info => false` unless needed. Free ip-api.com allows **45 req/min**, HTTP only. Failures are negatively cached. |
+| Noise | Defaults skip Livewire/Debugbar/Telescope/Horizon/health/Sanctum/broadcasting, AJAX, and prefetch. Tune `sample_rate` / `dedupe_seconds` under heavy traffic. |
+| Retention | Set `retention_days` and schedule `$schedule->command('model:prune')->daily();` |
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-`config/visit-tracker.php`:
+`config/visit-tracker.php` (key options):
 
 ```php
 return [
     'excluded_paths' => [
-        'admin/*',
+        'livewire/*',
+        '_debugbar/*',
         'telescope/*',
+        'horizon/*',
+        'up',
+        'sanctum/csrf-cookie',
+        'broadcasting/auth',
     ],
 
-    'excluded_methods' => [
-        'POST',
-        'PATCH',
-    ],
+    'excluded_methods' => [],
+
+    'skip_ajax' => true,
+    'skip_prefetch' => true,
+
+    'sample_rate' => 1.0,      // 0.0–1.0
+    'dedupe_seconds' => 0,     // 0 = disabled
 
     'log_bots' => false,
 
-    'ip_info_cache_duration' => 86400, // seconds
-    
-    'use_queue' => true, // Use Laravel queues for processing
+    'detailed_ip_info' => false,
+    'ip_info_cache_duration' => 86400,
+    'ip_info_negative_cache_duration' => 900,
 
-    // Optional: only needed if Horizon/worker listens on a different connection
-    // than QUEUE_CONNECTION (e.g. Horizon=redis, QUEUE_CONNECTION=database)
+    // After-response INSERT (no worker). Set true only if you want a queue worker.
+    'use_queue' => false,
     'queue_connection' => env('VISIT_TRACKER_QUEUE_CONNECTION'),
     'queue_name' => env('VISIT_TRACKER_QUEUE'),
 
-    'log_payload' => false, // Set to true to log request payload/body data
-
+    'log_payload' => false,
     'excluded_payload_fields' => [
         'password',
         'password_confirmation',
@@ -131,33 +127,32 @@ return [
         '_token',
     ],
 
-    // Assign anonymous visits to the user after login/register
     'attribute_on_auth' => true,
     'visitor_cookie' => 'visit_tracker_vid',
-    'visitor_cookie_minutes' => 60 * 24 * 365 * 2, // 2 years
+    'visitor_cookie_minutes' => 60 * 24 * 365 * 2,
+
+    'retention_days' => null,          // e.g. 90
+    'statistics_cache_ttl' => 60,      // seconds; 0 disables
 ];
 ```
 
-- **excluded\_paths** → Wildcards supported. Paths that will not be logged.
-- **excluded\_methods** → HTTP methods that will not be logged. Example: `['POST', 'PATCH']` - these requests will not be logged. Leave empty array `[]` to log all methods.
-- **log\_bots** → Set `true` to log bot visits.
-- **ip\_info\_cache\_duration** → Cache IP info to reduce API calls.
-- **use\_queue** → Set `true` to use Laravel queues, `false` for synchronous processing.
-- **log\_payload** → Set `true` to log request payload/body data. Set to `false` to disable payload logging for privacy/security reasons.
-- **excluded\_payload\_fields** → Fields to exclude from request payload logging (useful for sensitive data like passwords, tokens, etc.). Only applies if `log_payload` is `true`.
-- **attribute\_on\_auth** → When `true`, anonymous visits from the same browser are assigned to the user after login or registration.
-- **visitor\_cookie** → Cookie name used to recognize anonymous visitors across session regenerations.
-- **visitor\_cookie\_minutes** → Lifetime of the visitor cookie in minutes.
+- **excluded_paths** — Wildcards supported. Defaults cover common framework noise.
+- **skip_ajax / skip_prefetch** — Avoid logging XHR/JSON and browser prefetch/prerender.
+- **sample_rate** — Log only a fraction of visits (e.g. `0.1` ≈ 10%).
+- **dedupe_seconds** — Skip repeats of the same visitor + `page_url` within N seconds (cache-backed).
+- **log_bots** — When `false`, a cheap CrawlerDetect check skips bots before the heavy UA pipeline.
+- **detailed_ip_info** — Optional ip-api.com lookup (after response / in job).
+- **use_queue** — `false` = write in `terminate`; `true` = dispatch `ProcessVisitLog`.
+- **retention_days** — Enable `MassPrunable` cleanup via `model:prune`.
+- **statistics_cache_ttl** — Short TTL cache around `PageVisitLog` statistic helpers.
 
 ### Attribute anonymous visits after login/register
 
 When `attribute_on_auth` is enabled (default), the package:
 
-1. Stores a persistent `visitor_id` cookie while the guest browses
+1. Stores a persistent `visitor_id` cookie while the guest browses (queued only when missing)
 2. Saves that `visitor_id` (and `session_id`) on each visit log
 3. On `Login` / `Registered`, updates matching rows where `user_id` is null
-
-You can also do it manually:
 
 ```php
 use IbrahimKaya\VisitTracker\Models\PageVisitLog;
@@ -169,14 +164,23 @@ PageVisitLog::attributeToUser(
 );
 ```
 
+### Retention pruning
+
+```php
+// config/visit-tracker.php
+'retention_days' => 90,
+
+// app/Console/Kernel.php or routes/console.php
+$schedule->command('model:prune', [
+    '--model' => [\IbrahimKaya\VisitTracker\Models\PageVisitLog::class],
+])->daily();
+```
+
 ---
 
-## 💻 Usage
+## Usage
 
-No extra code is required. Visit any web page and the visit is logged automatically.
-
-
-**Retrieve logs example:**
+No extra code is required. Visit any web page and the visit is logged automatically after the response is sent.
 
 ```php
 use IbrahimKaya\VisitTracker\Models\PageVisitLog;
@@ -187,13 +191,14 @@ foreach ($recentVisits as $visit) {
     echo $visit->ip_address;
     echo $visit->browser;
     echo $visit->device_type;
-    echo $visit->method; // HTTP method (GET, POST, etc.)
-    echo $visit->payload; // Request payload (array, null for GET requests)
+    echo $visit->path;
+    echo $visit->country_code;
+    echo $visit->method;
+    echo $visit->payload;
 }
 ```
 
-
-**Optional manual middleware:**
+Optional manual middleware registration:
 
 ```php
 protected $middleware = [
@@ -203,177 +208,73 @@ protected $middleware = [
 
 ---
 
-## 📊 Statistics
+## Statistics
 
-The `PageVisitLog` model provides various static methods to retrieve statistics about your visits.
+The `PageVisitLog` model provides static helpers (results are cached for `statistics_cache_ttl` seconds).
 
-> **Note:** The examples below are just some quick use functions. For detailed usage, you can query the model directly using Laravel's Eloquent methods to retrieve and manipulate the data as needed. All visit data is stored in the `page_visit_logs` table and can be accessed through the `PageVisitLog` model.
+> For custom reporting, query the model with Eloquent directly. Aggregations prefer the indexed `path` / `country_code` columns when present.
 
 ### Basic Statistics
 
-**Total Visits:**
 ```php
 use IbrahimKaya\VisitTracker\Models\PageVisitLog;
 
-// Get total visits (including bots)
 $total = PageVisitLog::totalVisits();
+$total = PageVisitLog::totalVisits(true); // exclude bots
 
-// Get total visits excluding bots
-$total = PageVisitLog::totalVisits(true);
-```
-
-**Unique Visitors:**
-```php
-// Counts unique visitors using user_id (if logged in) or session_id
-// This ensures logged-in users are counted correctly even if their session_id changes
 $unique = PageVisitLog::uniqueVisitors();
-$unique = PageVisitLog::uniqueVisitors(true); // Exclude bots
-```
-
-**Unique IP Addresses:**
-```php
-$uniqueIps = PageVisitLog::uniqueIpAddresses();
-$uniqueIps = PageVisitLog::uniqueIpAddresses(true); // Exclude bots
+$uniqueIps = PageVisitLog::uniqueIpAddresses(true);
 ```
 
 ### Page Statistics
 
-**Most Visited Pages:**
 ```php
-// Get top 10 most visited pages
 $topPages = PageVisitLog::mostVisitedPages(10);
-
-// Get top 5 most visited pages excluding bots
 $topPages = PageVisitLog::mostVisitedPages(5, true);
 
-// Access results
 foreach ($topPages as $page) {
     echo $page->page_url . ': ' . $page->visit_count . ' visits';
 }
-```
 
-**Visits by Date Range:**
-```php
-// Get visits for a specific date range
-$visits = PageVisitLog::visitsByDateRange('2024-01-01', '2024-01-31');
-
-// Get visits from a specific date to today
-$visits = PageVisitLog::visitsByDateRange('2024-01-01');
-
-// Get visits up to a specific date
-$visits = PageVisitLog::visitsByDateRange(null, '2024-01-31');
-
-// Exclude bots
 $visits = PageVisitLog::visitsByDateRange('2024-01-01', '2024-01-31', true);
 ```
 
 ### Device & Browser Statistics
 
-**Statistics by Device Type:**
 ```php
-$deviceStats = PageVisitLog::statisticsByDeviceType();
-$deviceStats = PageVisitLog::statisticsByDeviceType(true); // Exclude bots
-
-// Access results
-foreach ($deviceStats as $stat) {
-    echo $stat->device_type . ': ' . $stat->count . ' visits';
-}
-```
-
-**Statistics by Browser:**
-```php
+$deviceStats = PageVisitLog::statisticsByDeviceType(true);
 $browserStats = PageVisitLog::statisticsByBrowser();
-$browserStats = PageVisitLog::statisticsByBrowser(true); // Exclude bots
-
-foreach ($browserStats as $stat) {
-    echo $stat->browser . ': ' . $stat->count . ' visits';
-}
-```
-
-**Statistics by Platform:**
-```php
 $platformStats = PageVisitLog::statisticsByPlatform();
-$platformStats = PageVisitLog::statisticsByPlatform(true); // Exclude bots
-
-foreach ($platformStats as $stat) {
-    echo $stat->platform . ': ' . $stat->count . ' visits';
-}
 ```
 
-### Referrer Statistics
+### Referrer & Time-based
 
-**Top Referrers:**
 ```php
-// Get top 10 referrers
-$referrers = PageVisitLog::statisticsByReferrer(10);
-$referrers = PageVisitLog::statisticsByReferrer(10, true); // Exclude bots
-
-foreach ($referrers as $referrer) {
-    echo $referrer->referrer . ': ' . $referrer->count . ' visits';
-}
-```
-
-### Time-based Statistics
-
-**Daily Statistics:**
-```php
-// Get daily statistics for the last 30 days
-$daily = PageVisitLog::dailyStatistics(30);
-$daily = PageVisitLog::dailyStatistics(30, true); // Exclude bots
-
-foreach ($daily as $day) {
-    echo $day->date . ': ' . $day->count . ' visits';
-}
+$referrers = PageVisitLog::statisticsByReferrer(10, true);
+$daily = PageVisitLog::dailyStatistics(30, true);
 ```
 
 ### Geographic Statistics
 
-**Statistics by Country:**
 ```php
-// Requires detailed IP info to be enabled in config
-$countryStats = PageVisitLog::statisticsByCountry();
-$countryStats = PageVisitLog::statisticsByCountry(true); // Exclude bots
+// Prefer country_code (filled when detailed_ip_info is enabled)
+$countryStats = PageVisitLog::statisticsByCountry(true);
 
 foreach ($countryStats as $stat) {
     echo $stat['country'] . ': ' . $stat['count'] . ' visits';
 }
 ```
 
-### Summary Statistics
+### Summary
 
-**Get All Statistics at Once:**
 ```php
-// Get summary statistics for the last 30 days
-$summary = PageVisitLog::summaryStatistics(30);
-$summary = PageVisitLog::summaryStatistics(30, true); // Exclude bots
-
-// Returns an array with:
-// - total_visits
-// - unique_visitors
-// - unique_ips
-// - top_pages (top 5)
-// - by_device
-// - by_browser
-// - by_platform
-
-echo $summary['total_visits'];
-echo $summary['unique_visitors'];
+$summary = PageVisitLog::summaryStatistics(30, true);
+// total_visits, unique_visitors, unique_ips, top_pages, by_device, by_browser, by_platform
 ```
 
 ### Query Scopes
 
-**Exclude Bots Scope:**
 ```php
-// Use the scope to filter out bots
-$visits = PageVisitLog::excludeBots()->get();
-```
-
-**Date Range Scope:**
-```php
-// Filter visits by date range
-$visits = PageVisitLog::dateRange('2024-01-01', '2024-01-31')->get();
-
-// Combine scopes
 $visits = PageVisitLog::excludeBots()
     ->dateRange('2024-01-01', '2024-01-31')
     ->get();
@@ -381,6 +282,6 @@ $visits = PageVisitLog::excludeBots()
 
 ---
 
-## 📜 License
+## License
 
 MIT License © [İbrahim Kaya](https://ibrahimkaya.dev)

@@ -8,11 +8,18 @@ return [
     |--------------------------------------------------------------------------
     |
     | The paths you specify here will not be logged.
-    | Example: ['telescope/*', 'horizon/*', 'admin/*']
+    | Wildcards are supported (Str::is).
     |
     */
     'excluded_paths' => [
-	
+        'livewire/*',
+        'livewire/update',
+        '_debugbar/*',
+        'telescope/*',
+        'horizon/*',
+        'up',
+        'sanctum/csrf-cookie',
+        'broadcasting/auth',
     ],
 
     /*
@@ -26,51 +33,107 @@ return [
     |
     */
     'excluded_methods' => [
-	
+
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Skip AJAX / JSON Requests
+    |--------------------------------------------------------------------------
+    |
+    | When true, requests that expect JSON or are XHR are not logged.
+    |
+    */
+    'skip_ajax' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Skip Prefetch Requests
+    |--------------------------------------------------------------------------
+    |
+    | When true, browser prefetch / prerender requests are not logged.
+    |
+    */
+    'skip_prefetch' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sample Rate
+    |--------------------------------------------------------------------------
+    |
+    | Fraction of eligible requests to log (0.0–1.0). 1.0 logs every visit.
+    | Example: 0.1 logs roughly 10% of visits.
+    |
+    */
+    'sample_rate' => 1.0,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dedupe Window (seconds)
+    |--------------------------------------------------------------------------
+    |
+    | Skip logging when the same visitor hits the same page_url within this
+    | many seconds. Set to 0 to disable. Uses the application cache.
+    |
+    */
+    'dedupe_seconds' => 0,
 
     /*
     |--------------------------------------------------------------------------
     | IP Info Cache Duration
     |--------------------------------------------------------------------------
     |
-    | Determine how long you want to keep IP information in the cache.
-    | Example: '24h' or '3600' (seconds)
+    | How long successful IP geolocation lookups are cached (seconds).
     |
     */
-    'ip_info_cache_duration' => 24 * 60 * 60, // 24 hours (in seconds)
-	
-	/*
+    'ip_info_cache_duration' => 24 * 60 * 60, // 24 hours
+
+    /*
+    |--------------------------------------------------------------------------
+    | IP Info Negative Cache Duration
+    |--------------------------------------------------------------------------
+    |
+    | How long failed / rate-limited IP lookups are cached as a miss (seconds).
+    | Prevents hammering ip-api.com when a lookup fails.
+    |
+    */
+    'ip_info_negative_cache_duration' => 15 * 60, // 15 minutes
+
+    /*
     |--------------------------------------------------------------------------
     | Logging Bots
     |--------------------------------------------------------------------------
     |
-    | If the incoming visitor is a bot (Google bot, search engine bot, etc.), should it be logged?
+    | If the incoming visitor is a bot (Google bot, search engine bot, etc.),
+    | should it be logged?
     |
     */
     'log_bots' => false,
-	
-	/*
+
+    /*
     |--------------------------------------------------------------------------
     | Detailed IP Info
     |--------------------------------------------------------------------------
     |
-    | If this option is set to true, it will retrieve detailed information from http://ip-api.com.
+    | When true, fetches geolocation from http://ip-api.com (free tier:
+    | 45 requests/minute, HTTP only). Prefer leaving this false unless needed;
+    | lookups run after the response is sent (terminate) or in a queue job.
     |
     */
-    'detailed_ip_info' => true,
+    'detailed_ip_info' => false,
 
     /*
     |--------------------------------------------------------------------------
     | Use Queue System
     |--------------------------------------------------------------------------
     |
-    | If this option is set to true, visit logging will be processed via Laravel queues.
-    | If false, it will be processed synchronously (blocking).
-    | Recommended: true for production, false for development/testing.
+    | When true, visit logging is dispatched to a Laravel queue.
+    | When false, the visit is written after the response is sent (terminate),
+    | which is often the most efficient setup (one INSERT, no worker).
+    | If you use queues, prefer redis over the database driver.
     |
     */
-    'use_queue' => true,
+    'use_queue' => false,
 
     /*
     |--------------------------------------------------------------------------
@@ -145,4 +208,27 @@ return [
     |
     */
     'visitor_cookie_minutes' => 60 * 24 * 365 * 2,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Retention Days
+    |--------------------------------------------------------------------------
+    |
+    | Automatically prune visit logs older than this many days via
+    | `php artisan model:prune`. Set to null to disable pruning.
+    | Schedule: $schedule->command('model:prune')->daily();
+    |
+    */
+    'retention_days' => null,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Statistics Cache TTL (seconds)
+    |--------------------------------------------------------------------------
+    |
+    | How long PageVisitLog summary/statistic helpers cache their results.
+    | Set to 0 to disable caching.
+    |
+    */
+    'statistics_cache_ttl' => 60,
 ];
