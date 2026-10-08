@@ -5,6 +5,7 @@ namespace IbrahimKaya\VisitTracker\Middleware;
 use Closure;
 use IbrahimKaya\VisitTracker\Jobs\ProcessVisitLog;
 use IbrahimKaya\VisitTracker\Models\PageVisitLog;
+use IbrahimKaya\VisitTracker\Support\BrowserDetector;
 use IbrahimKaya\VisitTracker\Support\IpInfoLookup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -86,7 +87,7 @@ class VisitTracker
                 return;
             }
 
-            $result = app('browser-detect')->detect();
+            $result = BrowserDetector::detect($context['user_agent'] ?? $request->userAgent());
 
             $logBots = config('visit-tracker.log_bots', false);
             if ($result->isBot() && ! $logBots) {

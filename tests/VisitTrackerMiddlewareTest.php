@@ -152,4 +152,34 @@ class VisitTrackerMiddlewareTest extends TestCase
 
         Bus::assertNotDispatched(ProcessVisitLog::class);
     }
+
+    public function test_browser_detector_recovers_from_incomplete_cached_result(): void
+    {
+        Bus::fake();
+        $this->trackingConfig();
+
+        $result = Mockery::mock(ResultInterface::class);
+        $result->shouldReceive('isBot')->twice()->andReturn(false);
+        $result->shouldReceive('deviceType')->once()->andReturn('Desktop');
+        $result->shouldReceive('browserName')->once()->andReturn('Chrome 120');
+        $result->shouldReceive('platformName')->once()->andReturn('Windows 10');
+
+        $parser = Mockery::mock(ParserInterface::class);
+        $parser->shouldReceive('detect')
+            ->once()
+            ->andThrow(new \TypeError('Return value must be of type ResultInterface, __PHP_Incomplete_Class returned'));
+        $parser->shouldReceive('parse')->once()->andReturn($result);
+
+        // bind (not instance) so forgetInstance() during recovery still resolves this mock
+        $this->app->bind('browser-detect', fn () => $parser);
+
+        $request = Request::create('/home', 'GET', [], [], [], [
+            'HTTP_USER_AGENT' => 'Mozilla/5.0 TestAgent',
+        ]);
+        $request->setLaravelSession($this->app['session.store']);
+
+        $this->runMiddleware($request, new VisitTracker());
+
+        Bus::assertDispatched(ProcessVisitLog::class);
+    }
 }
